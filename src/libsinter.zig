@@ -23,16 +23,16 @@ const CCallbackIterator = struct {
 
     pub inline fn next(iter: *CCallbackIterator) ?u64 {
         if (iter.remaining.len > 0) {
-            var v = iter.remaining[0];
+            const v = iter.remaining[0];
             iter.remaining = iter.remaining[1..];
             return v;
         }
 
-        var written = iter.callback(iter.filter, &iter.buf[0], iter.userdata);
+        const written = iter.callback(iter.filter, &iter.buf[0], iter.userdata);
         if (written == 0) {
             return null;
         }
-        var v = iter.buf[0];
+        const v = iter.buf[0];
         if (written > 1) iter.remaining = iter.buf[1..written];
         return v;
     }
@@ -54,7 +54,7 @@ export fn sinterFilterInit(estimated_keys: u64, out: *SinterFilter) SinterError 
     const ptr = allocator.create(SinterFilterImpl) catch return SinterError.OutOfMemory;
     errdefer allocator.destroy(ptr);
     ptr.* = SinterFilterImpl{
-        .filter = CFilterType.init(@intCast(usize, estimated_keys)),
+        .filter = CFilterType.init(@as(usize, estimated_keys)),
     };
     out.* = ptr;
     return SinterError.None;
@@ -62,7 +62,7 @@ export fn sinterFilterInit(estimated_keys: u64, out: *SinterFilter) SinterError 
 
 export fn sinterFilterDeinit(c_filter: SinterFilter) void {
     const allocator = std.heap.c_allocator;
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
     filter.filter.deinit(allocator);
     allocator.destroy(filter);
 }
