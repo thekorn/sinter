@@ -159,7 +159,7 @@ pub fn Filter(comptime options: Options, comptime Result: type, comptime Iterato
             var target_division: usize = keys_len % options.mid_layer_divisions;
 
             const target_keys_per_division = filter.total_keys_estimate / options.mid_layer_divisions;
-            for (filter.mid_layer) |division, division_index| {
+            for (filter.mid_layer, 0..) |division, division_index| {
                 if (division.keys + inner_layer.keys >= target_keys_per_division) continue;
 
                 // Found a division we can place it into.
@@ -261,7 +261,7 @@ pub fn Filter(comptime options: Options, comptime Result: type, comptime Iterato
             try populateIterUnique(allocator, &filter.outer_layer.?, &all_keys_iter);
 
             // Populate each mid layer filter, with their division of keys.
-            for (filter.mid_layer) |*mid_layer, mid_layer_index| {
+            for (filter.mid_layer, 0..) |*mid_layer, mid_layer_index| {
                 var mid_layer_iter = MidLayerIterator{ .filter = filter, .mid_layer_index = mid_layer_index };
                 mid_layer.filter = try BinaryFuseFilter.init(allocator, mid_layer.keys);
                 // try mid_layer.filter.?.populateIter(allocator, &mid_layer_iter);
@@ -326,7 +326,7 @@ pub fn Filter(comptime options: Options, comptime Result: type, comptime Iterato
                 };
                 if (!any) continue;
 
-                for (inner.inner_layers.items(.filter)) |inner_layer_filter, i| {
+                for (inner.inner_layers.items(.filter), 0..) |inner_layer_filter, i| {
                     any = blk: {
                         for (or_keys) |key| {
                             if (inner_layer_filter.?.contain(key)) {
@@ -372,7 +372,7 @@ pub fn Filter(comptime options: Options, comptime Result: type, comptime Iterato
                 };
                 if (!all) continue;
 
-                for (inner.inner_layers.items(.filter)) |inner_layer_filter, i| {
+                for (inner.inner_layers.items(.filter), 0..) |inner_layer_filter, i| {
                     all = blk: {
                         for (and_keys) |key| {
                             if (!inner_layer_filter.?.contain(key)) {
@@ -431,7 +431,7 @@ pub fn Filter(comptime options: Options, comptime Result: type, comptime Iterato
                 // Mid layer
                 try stream.writeIntLittle(u64, mid_layer.keys);
                 try serializeFilter(stream, &mid_layer.filter.?);
-                try stream.writeIntLittle(u32, @intCast(u32, mid_layer.inner_layers.len));
+                try stream.writeIntLittle(u32, @intCast(mid_layer.inner_layers.len));
 
                 var i: usize = 0;
                 while (i < mid_layer.inner_layers.len) : (i += 1) {
@@ -444,7 +444,7 @@ pub fn Filter(comptime options: Options, comptime Result: type, comptime Iterato
                     if (Result == u64) {
                         try stream.writeIntLittle(u64, inner_layer.result);
                     } else if (Result == []const u8) {
-                        try stream.writeIntLittle(u32, @intCast(u32, inner_layer.result.len));
+                        try stream.writeIntLittle(u32, @intCast(inner_layer.result.len));
                         try stream.writeAll(inner_layer.result);
                     } else unreachable;
                 }
@@ -457,7 +457,7 @@ pub fn Filter(comptime options: Options, comptime Result: type, comptime Iterato
             try stream.writeIntLittle(u32, filter.segment_length_mask);
             try stream.writeIntLittle(u32, filter.segment_count);
             try stream.writeIntLittle(u32, filter.segment_count_length);
-            try stream.writeIntLittle(u32, @intCast(u32, filter.fingerprints.len));
+            try stream.writeIntLittle(u32, @intCast(filter.fingerprints.len));
 
             const F = std.meta.Elem(@TypeOf(filter.fingerprints));
             const fingerprint_bytes: []const u8 = filter.fingerprints.ptr[0 .. filter.fingerprints.len * @sizeOf(F)];
@@ -504,11 +504,11 @@ pub fn Filter(comptime options: Options, comptime Result: type, comptime Iterato
                 var i: usize = 0;
                 while (i < inner_layers.len) : (i += 1) {
                     // Inner Layer
-                    var inner_layer_keys = try stream.readIntLittle(u64);
-                    var inner_layer_filter = try deserializeFilter(allocator, stream);
+                    const inner_layer_keys = try stream.readIntLittle(u64);
+                    const inner_layer_filter = try deserializeFilter(allocator, stream);
 
                     // TODO: generic result deserialization
-                    var result = if (Result == u64) blk: {
+                    const result = if (Result == u64) blk: {
                         break :blk try stream.readIntLittle(u64);
                     } else if (Result == []const u8) blk: {
                         const data_len = try stream.readIntLittle(u32);

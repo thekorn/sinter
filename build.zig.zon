@@ -1,0 +1,16 @@
+.{
+    .name = "sinter",
+    .version = "0.0.0",
+    .dependencies = .{
+        .fastfilter = .{
+            .url = "git+https://github.com/hexops/fastfilter.git?ref=main#8b57691931798474a44ef7c2a6b9cf43dce7d20b",
+            .hash = "1220608c1724fc7d1cfa7ae7ed2f1b7a5c975937aaa8ec6ae2089bfdf20a4f619138",
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

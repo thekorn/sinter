@@ -1,3 +1,0 @@
-[submodule "libs/fastfilter"]
-	path = libs/fastfilter
-	url = https://github.com/hexops/fastfilter

@@ -1,5 +1,4 @@
 const std = @import("std");
-const fastfilter = @import("libs/fastfilter/build.zig");
 
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
@@ -11,6 +10,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    const fastfilter = b.dependency("fastfilter", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    lib.root_module.addImport("fastfilter", fastfilter.module("fastfilter"));
 
     b.installArtifact(lib);
 

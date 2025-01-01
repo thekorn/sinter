@@ -23,16 +23,16 @@ const CCallbackIterator = struct {
 
     pub inline fn next(iter: *CCallbackIterator) ?u64 {
         if (iter.remaining.len > 0) {
-            var v = iter.remaining[0];
+            const v = iter.remaining[0];
             iter.remaining = iter.remaining[1..];
             return v;
         }
 
-        var written = iter.callback(iter.filter, &iter.buf[0], iter.userdata);
+        const written = iter.callback(iter.filter, &iter.buf[0], iter.userdata);
         if (written == 0) {
             return null;
         }
-        var v = iter.buf[0];
+        const v = iter.buf[0];
         if (written > 1) iter.remaining = iter.buf[1..written];
         return v;
     }
@@ -54,7 +54,7 @@ export fn sinterFilterInit(estimated_keys: u64, out: *SinterFilter) SinterError 
     const ptr = allocator.create(SinterFilterImpl) catch return SinterError.OutOfMemory;
     errdefer allocator.destroy(ptr);
     ptr.* = SinterFilterImpl{
-        .filter = CFilterType.init(@intCast(usize, estimated_keys)),
+        .filter = CFilterType.init(@intCast(estimated_keys)),
     };
     out.* = ptr;
     return SinterError.None;
@@ -62,14 +62,14 @@ export fn sinterFilterInit(estimated_keys: u64, out: *SinterFilter) SinterError 
 
 export fn sinterFilterDeinit(c_filter: SinterFilter) void {
     const allocator = std.heap.c_allocator;
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
     filter.filter.deinit(allocator);
     allocator.destroy(filter);
 }
 
 export fn sinterFilterInsert(c_filter: SinterFilter, callback: SinterIterator, len: u64, result: [*]const u8, result_len: u64, userdata: *anyopaque) SinterError {
     const allocator = std.heap.c_allocator;
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
 
     const ptr = allocator.create(CCallbackIterator) catch return SinterError.OutOfMemory;
     errdefer allocator.destroy(ptr);
@@ -83,7 +83,7 @@ export fn sinterFilterInsert(c_filter: SinterFilter, callback: SinterIterator, l
         .filter = c_filter,
         .userdata = userdata,
         .callback = callback,
-        .length = @intCast(usize, len),
+        .length = @intCast(len),
         .buf = &filter.iterator_buf,
         .result = result_copy,
     };
@@ -93,7 +93,7 @@ export fn sinterFilterInsert(c_filter: SinterFilter, callback: SinterIterator, l
 
 export fn sinterFilterIndex(c_filter: SinterFilter) SinterError {
     const allocator = std.heap.c_allocator;
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
     filter.filter.index(allocator) catch |err| return switch (err) {
         error.OutOfMemory => SinterError.OutOfMemory,
         error.KeysLikelyNotUnique => @panic("keys likely not unique"),
@@ -115,47 +115,47 @@ export fn sinterFilterReadFile(file_path: [*:0]const u8, out: *SinterFilter) Sin
 export fn sinterFilterWriteFile(c_filter: SinterFilter, file_path: [*:0]const u8) SinterError {
     const allocator = std.heap.c_allocator;
 
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
     filter.filter.writeFile(allocator, std.fs.cwd(), std.mem.span(file_path)) catch |err| return errorToCError(err);
     return SinterError.None;
 }
 
 export fn sinterFilterContains(c_filter: SinterFilter, key: u64) bool {
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
     return filter.filter.contains(key);
 }
 
 export fn sinterFilterSizeInBytes(c_filter: SinterFilter) u64 {
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
     return filter.filter.sizeInBytes() + @sizeOf([100_000]u64);
 }
 
 const SinterFilterResults = *anyopaque;
 
 export fn sinterFilterResultsLen(c_results: SinterFilterResults) u64 {
-    const results = @ptrCast(*std.ArrayListUnmanaged([]const u8), @alignCast(@alignOf(std.ArrayListUnmanaged([]const u8)), c_results));
+    const results: *std.ArrayListUnmanaged([]const u8) = @ptrCast(@alignCast(c_results));
     return results.items.len;
 }
 
 export fn sinterFilterResultsIndexLen(c_results: SinterFilterResults, index: u64) u64 {
-    const results = @ptrCast(*std.ArrayListUnmanaged([]const u8), @alignCast(@alignOf(std.ArrayListUnmanaged([]const u8)), c_results));
+    const results: *std.ArrayListUnmanaged([]const u8) = @ptrCast(@alignCast(c_results));
     return results.items[index].len;
 }
 
 export fn sinterFilterResultsIndexGet(c_results: SinterFilterResults, index: u64) [*]const u8 {
-    const results = @ptrCast(*std.ArrayListUnmanaged([]const u8), @alignCast(@alignOf(std.ArrayListUnmanaged([]const u8)), c_results));
+    const results: *std.ArrayListUnmanaged([]const u8) = @ptrCast(@alignCast(c_results));
     return results.items[index].ptr;
 }
 
 export fn sinterFilterResultsDeinit(c_results: SinterFilterResults) void {
     const allocator = std.heap.c_allocator;
-    const results = @ptrCast(*std.ArrayListUnmanaged([]const u8), @alignCast(@alignOf(std.ArrayListUnmanaged([]const u8)), c_results));
+    const results: *std.ArrayListUnmanaged([]const u8) = @ptrCast(@alignCast(c_results));
     results.deinit(allocator);
 }
 
 export fn sinterFilterQueryLogicalOr(c_filter: SinterFilter, or_keys: [*]u64, or_keys_len: u64, out_results: *SinterFilterResults) SinterError {
     const allocator = std.heap.c_allocator;
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
 
     const ptr = allocator.create(std.ArrayListUnmanaged([]const u8)) catch return SinterError.OutOfMemory;
     ptr.* = std.ArrayListUnmanaged([]const u8){};
@@ -174,7 +174,7 @@ export fn sinterFilterQueryLogicalOr(c_filter: SinterFilter, or_keys: [*]u64, or
 
 export fn sinterFilterQueryLogicalAnd(c_filter: SinterFilter, and_keys: [*]u64, and_keys_len: u64, out_results: *SinterFilterResults) SinterError {
     const allocator = std.heap.c_allocator;
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
 
     const ptr = allocator.create(std.ArrayListUnmanaged([]const u8)) catch return SinterError.OutOfMemory;
     ptr.* = std.ArrayListUnmanaged([]const u8){};
@@ -193,7 +193,7 @@ export fn sinterFilterQueryLogicalAnd(c_filter: SinterFilter, and_keys: [*]u64, 
 
 export fn sinterFilterQueryLogicalOrNumResults(c_filter: SinterFilter, or_keys: [*]u64, or_keys_len: u64, out_num_results: *u64) SinterError {
     const allocator = std.heap.c_allocator;
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
 
     out_num_results.* = filter.filter.queryLogicalOr(
         allocator,
@@ -206,7 +206,7 @@ export fn sinterFilterQueryLogicalOrNumResults(c_filter: SinterFilter, or_keys: 
 
 export fn sinterFilterQueryLogicalAndNumResults(c_filter: SinterFilter, and_keys: [*]u64, and_keys_len: u64, out_num_results: *u64) SinterError {
     const allocator = std.heap.c_allocator;
-    const filter = @ptrCast(*SinterFilterImpl, @alignCast(@alignOf(SinterFilterImpl), c_filter));
+    const filter: *SinterFilterImpl = @ptrCast(@alignCast(c_filter));
 
     out_num_results.* = filter.filter.queryLogicalAnd(
         allocator,
